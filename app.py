@@ -14,7 +14,7 @@ pretraineds_custom_path = os.path.join(
 def get_pretrained_list(suffix):
     return [
         os.path.join(dirpath, filename)
-        for dirpath, _, filenames in os.walk(pretraineds_custom_path_relative)
+        for dirpath, _, filenames in os.walk(pretraineds_custom_path)
         for filename in filenames
         if filename.endswith(".pth") and suffix in filename
     ]
