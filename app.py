@@ -576,7 +576,7 @@ with gr.Blocks(title="RVC WebUI") as app:
                     refresh_custom_pretaineds_button.click(
                         fn=refresh_custom_pretraineds,
                         inputs=[],
-                        outputs=[g_pretrained_path, d_pretrained_path],
+                        outputs=[pretrained_G14, pretrained_D15],
                     )
                     gpus16 = gr.Textbox(
                         label=i18n(
