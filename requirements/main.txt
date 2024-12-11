@@ -44,3 +44,5 @@ torchfcpe
 python-dotenv>=1.0.0
 av
 pybase16384
+audio-separator[gpu]
+yt_dlp
