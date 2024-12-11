@@ -1,7 +1,68 @@
 import gradio as gr
+from original import *
+from audio_separator.separator import Separator
+import os, sys
+
+now_dir = os.getcwd()
+sys.path.append(now_dir)
+
+pretraineds_custom_path = os.path.join(
+    now_dir, "assets", "pretrained_v2"
+)
+
+
+def get_pretrained_list(suffix):
+    return [
+        os.path.join(dirpath, filename)
+        for dirpath, _, filenames in os.walk(pretraineds_custom_path_relative)
+        for filename in filenames
+        if filename.endswith(".pth") and suffix in filename
+    ]
+
+
+pretraineds_list_d = get_pretrained_list("D")
+pretraineds_list_g = get_pretrained_list("G")
+
+
+def refresh_custom_pretraineds():
+    return (
+        {"choices": sorted(get_pretrained_list("G")), "__type__": "update"},
+        {"choices": sorted(get_pretrained_list("D")), "__type__": "update"},
+    )
+
+
+def separate_audio(input_file, selected_model):
+    # Initialize the Separator class
+    separator = Separator()
+
+    # Load the selected model
+    separator.load_model(selected_model)
+
+    # Perform separation
+    output_files = separator.separate(input_file, 'stem1', 'stem2')
+    return f"Separation complete! Output file(s): {' '.join(output_files)}"
+
+# Define model options
+model_options = [
+    "model_bs_roformer_ep_317_sdr_12.9755.ckpt", 
+    "deverb_bs_roformer_8_384dim_10depth", 
+    "denoise_mel_band_roformer_aufr33_sdr_27.9959.ckpt", 
+    "mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt", 
+    "Mel-Roformer-Crowd-Aufr33-Viperx", 
+    "Mel-Roformer-Denoise-Aufr33", 
+    "Mel-Roformer-Denoise-Aufr33-Aggr", 
+    "MDX23C_D1581.ckpt", 
+    "MDX23C-8KFFT-InstVoc_HQ.ckpt", 
+    "UVR-MDX-NET_Main_340.onnx", 
+    "UVR-MDX-NET_Main_390.onnx",
+    # Add the remaining model options here
+]
+
+
+
 
 with gr.Blocks(title="RVC WebUI") as app:
-    gr.Markdown("## RVC WebUI")
+    gr.Markdown("# RVC WebUI")
     gr.Markdown(
         value=i18n(
             "This software is open source under the MIT license. The author does not have any control over the software. Users who use the software and distribute the sounds exported by the software are solely responsible. <br>If you do not agree with this clause, you cannot use or reference any codes and files within the software package. See the root directory <b>Agreement-LICENSE.txt</b> for details."
@@ -315,65 +376,21 @@ with gr.Blocks(title="RVC WebUI") as app:
         with gr.TabItem(
             i18n("Vocals/Accompaniment Separation & Reverberation Removal")
         ):
-            gr.Markdown(
-                value=i18n(
-                    "Batch processing for vocal accompaniment separation using the UVR5 model.<br>Example of a valid folder path format: D:\\path\\to\\input\\folder (copy it from the file manager address bar).<br>The model is divided into three categories:<br>1. Preserve vocals: Choose this option for audio without harmonies. It preserves vocals better than HP5. It includes two built-in models: HP2 and HP3. HP3 may slightly leak accompaniment but preserves vocals slightly better than HP2.<br>2. Preserve main vocals only: Choose this option for audio with harmonies. It may weaken the main vocals. It includes one built-in model: HP5.<br>3. De-reverb and de-delay models (by FoxJoy):<br>  (1) MDX-Net: The best choice for stereo reverb removal but cannot remove mono reverb;<br>&emsp;(234) DeEcho: Removes delay effects. Aggressive mode removes more thoroughly than Normal mode. DeReverb additionally removes reverb and can remove mono reverb, but not very effectively for heavily reverberated high-frequency content.<br>De-reverb/de-delay notes:<br>1. The processing time for the DeEcho-DeReverb model is approximately twice as long as the other two DeEcho models.<br>2. The MDX-Net-Dereverb model is quite slow.<br>3. The recommended cleanest configuration is to apply MDX-Net first and then DeEcho-Aggressive."
-                )
-            )
+            
             with gr.Row():
                 with gr.Column():
-                    dir_wav_input = gr.Textbox(
-                        label=i18n(
-                            "Enter the path of the audio folder to be processed"
-                        ),
-                        placeholder="C:\\Users\\Desktop\\todo-songs",
-                    )
-                    wav_inputs = gr.File(
-                        file_count="multiple",
-                        label=i18n(
-                            "Multiple audio files can also be imported. If a folder path exists, this input is ignored."
-                        ),
-                    )
+                    input_file = gr.File(label="Upload Audio File")
+                    model_dropdown = gr.Dropdown(choices=model_options, label="Select Model")
+    
                 with gr.Column():
-                    model_choose = gr.Dropdown(label=i18n("Model"), choices=uvr5_names)
-                    agg = gr.Slider(
-                        minimum=0,
-                        maximum=20,
-                        step=1,
-                        label="人声提取激进程度",
-                        value=10,
-                        interactive=True,
-                        visible=False,  # 先不开放调整
-                    )
-                    opt_vocal_root = gr.Textbox(
-                        label=i18n("Specify the output folder for vocals"),
-                        value="opt",
-                    )
-                    opt_ins_root = gr.Textbox(
-                        label=i18n("Specify the output folder for accompaniment"),
-                        value="opt",
-                    )
-                    format0 = gr.Radio(
-                        label=i18n("Export file format"),
-                        choices=["wav", "flac", "mp3", "m4a"],
-                        value="flac",
-                        interactive=True,
-                    )
-                but2 = gr.Button(i18n("Convert"), variant="primary")
-                vc_output4 = gr.Textbox(label=i18n("Output information"))
-                but2.click(
-                    uvr,
-                    [
-                        model_choose,
-                        dir_wav_input,
-                        opt_vocal_root,
-                        wav_inputs,
-                        opt_ins_root,
-                        agg,
-                        format0,
-                    ],
-                    [vc_output4],
-                    api_name="uvr_convert",
+                    output_message = gr.Textbox(label="Output Message", interactive=False)
+                
+                with gr.Row():
+                    separate_button = gr.Button("Separate Audio")
+                separate_button.click(
+                    separate_audio, 
+                    inputs=[input_file, model_dropdown], 
+                    outputs=[output_message]
                 )
         with gr.TabItem(i18n("Train")):
             gr.Markdown(
@@ -535,15 +552,31 @@ with gr.Blocks(title="RVC WebUI") as app:
                         interactive=True,
                     )
                 with gr.Column():
-                    pretrained_G14 = gr.Textbox(
-                        label=i18n("Load pre-trained base model G path"),
-                        value="assets/pretrained_v2/f0G48k.pth",
+                    pretrained_G14 = gr.Dropdown( 
+                        label=("Custom Pretrained G"),
+                        info=(
+                            "Select the custom pretrained model for the generator."             
+                        ),
+                        choices=sorted(pretraineds_list_g),
                         interactive=True,
+                        allow_custom_value=True,
                     )
-                    pretrained_D15 = gr.Textbox(
-                        label=i18n("Load pre-trained base model D path"),
-                        value="assets/pretrained_v2/f0D48k.pth",
-                        interactive=True,
+                    pretrained_D15 = gr.Dropdown(
+                        label=("Custom Pretrained D"),
+                        info=("Select the custom pretrained model for the discriminator."),
+                        choices=sorted(pretraineds_list_d),     
+                        interactive=True,             
+                        allow_custom_value=True,
+                    )
+                    with gr.Row():
+                        refresh_custom_pretaineds_button = gr.Button("Refresh Custom Pretraineds")
+                        
+
+
+                    refresh_custom_pretaineds_button.click(
+                        fn=refresh_custom_pretraineds,
+                        inputs=[],
+                        outputs=[g_pretrained_path, d_pretrained_path],
                     )
                     gpus16 = gr.Textbox(
                         label=i18n(
