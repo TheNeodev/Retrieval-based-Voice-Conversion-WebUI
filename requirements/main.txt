@@ -44,5 +44,11 @@ torchfcpe
 python-dotenv>=1.0.0
 av
 pybase16384
-audio-separator[gpu]
+ml_collections
 yt_dlp
+resampy
+rotary-embedding-torch
+beartype
+diffq-fixed
+julius
+diffq
